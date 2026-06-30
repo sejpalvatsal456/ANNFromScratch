@@ -1,6 +1,6 @@
 # Artificial Neural Network (ANN) From Scratch
 
-A fully connected Artificial Neural Network (ANN) implemented from scratch using **NumPy**, without relying on deep learning frameworks such as TensorFlow or PyTorch. This project demonstrates the complete training pipeline, including forward propagation, backpropagation, gradient descent, and prediction on handwritten digit images.
+A fully connected Artificial Neural Network (ANN) implemented from scratch using **NumPy**/**CuPy**, without relying on deep learning frameworks such as TensorFlow or PyTorch. This project demonstrates the complete training pipeline, including forward propagation, backpropagation, gradient descent, and prediction on handwritten digit images.
 
 The network is trained on the MNIST Digit Recognizer dataset and is designed to be easily extendable with additional layers and activation functions.
 
@@ -16,6 +16,8 @@ The network is trained on the MNIST Digit Recognizer dataset and is designed to 
 * One-hot encoding
 * Prediction and accuracy evaluation
 * Visualization of handwritten digits
+* Mini batch size training 
+* GPU acceleration support
 
 ---
 
@@ -23,6 +25,7 @@ The network is trained on the MNIST Digit Recognizer dataset and is designed to 
 
 * Python
 * NumPy
+* CuPy
 * Pandas
 * Matplotlib
 
@@ -38,7 +41,10 @@ Example architecture:
 Input (784)
       │
       ▼
-Hidden Layer (10, ReLU)
+Hidden Layer (128, ReLU)
+      │
+      ▼
+Hidden Layer (64, ReLU)
       │
       ▼
 Output Layer (10, Softmax)
@@ -56,8 +62,9 @@ Create a model by specifying the number of training iterations and learning rate
 
 ```python
 model = Model(
-    iterations=500,
-    alpha=0.1
+    iterations=100,
+    alpha=0.2,
+    batch_size=512
 )
 ```
 
@@ -75,18 +82,9 @@ A layer is created by specifying
 Example:
 
 ```python
-l1 = Layer(
-    10,
-    784,
-    ReLu,
-    ReLu_derive
-)
-
-l2 = Layer(
-    10,
-    10,
-    softmax
-)
+l1 = Layer(128, 784, ReLu, ReLu_derive)
+l2 = Layer(64, 128, ReLu, ReLu_derive)
+l3 = Layer(10, 64, softmax)
 ```
 
 The first hidden layer receives 784 inputs (28×28 image pixels) and produces 10 outputs. The output layer receives those 10 values and predicts probabilities for the 10 digit classes.
@@ -100,19 +98,8 @@ Add layers in order.
 ```python
 model.add_layer(l1)
 model.add_layer(l2)
+model.add_layer(l3)
 ```
-
-You can create deeper networks simply by adding more layers.
-
-Example:
-
-```python
-model.add_layer(Layer(64, 784, ReLu, ReLu_derive))
-model.add_layer(Layer(32, 64, ReLu, ReLu_derive))
-model.add_layer(Layer(10, 32, softmax))
-```
-
----
 
 ### Training
 
