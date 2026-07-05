@@ -5,12 +5,15 @@ from ANN import Model, Layer, softmax, ReLu, ReLu_derive
 from backend import GPU, xp
 from optimizers import Momentum
 
-df = pd.read_csv("./digit-recognizer/train.csv")
+# df = pd.read_csv("./digit-recognizer/train.csv")
+df = pd.read_csv("./fashion-mnist/fashion-mnist-train.csv")
 X = df.drop(columns='label')
 y = df['label']
 X_train, X_test, y_train, y_test = train_test_split(
   X, y, test_size=0.2, random_state=42
 )
+
+
 X_train = xp.asarray(X_train) / 255.0
 X_test = xp.asarray(X_test) / 255.0
 y_train = xp.asarray(y_train)

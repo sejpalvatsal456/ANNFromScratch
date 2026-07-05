@@ -63,16 +63,20 @@ class Layer:
   def update_params(self, dw, db, alpha, optimizer:Optimizer=None):
     if not optimizer:
       self.W = self.W - alpha*dw
-      self.b = self.b - optimizer.name == alpha*db
+      self.b = self.b - alpha*db
       return
-    
-    self.W = optimizer.update(key=f"W{self.id}", param=self.W, grad=dw)
-    self.b = optimizer.update(key=f"B{self.id}", param=self.b, grad=db)
+    # else:
+    #   print("Invalid optimiezr: " + optimizer.name)
+    #   exit()
+    self.W = optimizer.update(key=f"W{self.id}", lr=alpha, param=self.W, grad=dw)
+    self.b = optimizer.update(key=f"B{self.id}", lr=alpha, param=self.b, grad=db)
 
 class Model:
-  def __init__(self, iterations, alpha, optimizer:Optimizer, batch_size=64, ):
+  def __init__(self, iterations, alpha, optimizer:Optimizer, batch_size=64, decay=0.001):
     self.iterations = iterations
     self.alpha = alpha
+    self.alpha0 = alpha
+    self.decay = decay
     self.layers = []
     self.batch_size = batch_size
     self.optimizer = optimizer
@@ -129,6 +133,8 @@ class Model:
     acc_history = []
     iteration_history = []
     for i in range(self.iterations):
+      
+      self.alpha = self.alpha0 / (1+self.decay*i)
       
       # shuffle the dataset
       indices = xp.random.permutation(len(X_train))
