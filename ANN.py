@@ -2,6 +2,7 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 from backend import GPU, xp
+from optimizers import Optimizer
 
 def one_hot_encoding(y, num_classes=10):
   one_hot = xp.zeros((len(y), num_classes))
@@ -51,6 +52,7 @@ class Layer:
     self.input = None
     self.A = None
     self.Z = None
+    self.id = None
 
   def calculate(self, X):
     self.input = X
@@ -58,18 +60,25 @@ class Layer:
     self.A = self.act_func(self.Z)
     return self.A
   
-  def update_params(self, dw, db, alpha):
-    self.W = self.W - alpha*dw
-    self.b = self.b - alpha*db
+  def update_params(self, dw, db, alpha, optimizer:Optimizer=None):
+    if not optimizer:
+      self.W = self.W - alpha*dw
+      self.b = self.b - optimizer.name == alpha*db
+      return
+    
+    self.W = optimizer.update(key=f"W{self.id}", param=self.W, grad=dw)
+    self.b = optimizer.update(key=f"B{self.id}", param=self.b, grad=db)
 
 class Model:
-  def __init__(self, iterations, alpha, batch_size=64):
+  def __init__(self, iterations, alpha, optimizer:Optimizer, batch_size=64, ):
     self.iterations = iterations
     self.alpha = alpha
     self.layers = []
     self.batch_size = batch_size
+    self.optimizer = optimizer
   
   def add_layer(self, layer):
+    layer.id = len(self.layers)
     self.layers.append(layer)
     
   def forward_prop(self, X):
@@ -94,13 +103,16 @@ class Model:
   def _backward_prop(self, y_train, y_pred, m):
     one_hot_y = one_hot_encoding(y_train)
 
-    # Cross Entropy + Softmax derivative
+    # dZ = A(2) - Y
     dZ = y_pred - one_hot_y
 
     for i in reversed(range(len(self.layers))):
       layer = self.layers[i]
 
+      # dW(l) = A(l-1)_T dZ(l)
       dW = (layer.input.T @ dZ) / m
+      
+      # db(l) = Sum(dZ(l))
       db = xp.sum(dZ, axis=0, keepdims=True) / m
 
       if i != 0:
@@ -109,7 +121,7 @@ class Model:
         dA_prev = dZ @ layer.W.T
         dZ = dA_prev * prev_layer.act_deriv(prev_layer.Z)
 
-      layer.update_params(dW, db, self.alpha)
+      layer.update_params(dW, db, self.alpha, self.optimizer)
   
   def fit(self, X_train, y_train):
     m, _ = X_train.shape

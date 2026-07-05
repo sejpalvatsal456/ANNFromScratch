@@ -3,6 +3,7 @@ from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 from ANN import Model, Layer, softmax, ReLu, ReLu_derive
 from backend import GPU, xp
+from optimizers import Momentum
 
 df = pd.read_csv("./digit-recognizer/train.csv")
 X = df.drop(columns='label')
@@ -15,10 +16,13 @@ X_test = xp.asarray(X_test) / 255.0
 y_train = xp.asarray(y_train)
 y_test = xp.asarray(y_test)
 
+momentum_optimizer = Momentum()
+
 model = Model(
   100,
   0.2,
-  batch_size=512
+  batch_size=512,
+  optimizer=momentum_optimizer
 )
 l1 = Layer(128, 784, ReLu, ReLu_derive)
 l2 = Layer(64, 128, ReLu, ReLu_derive)
