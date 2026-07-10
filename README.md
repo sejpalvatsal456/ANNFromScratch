@@ -27,6 +27,10 @@ The network is trained on the MNIST Digit Recognizer dataset and is designed to 
 * Added learning rate decay parameter to models
 ---
 
+### Version 0.1.3
+* Added NAG, RMSProp and Adam Optimizer
+* Redesigned the mechanism of optimzer
+
 ## Tech Stack
 
 * Python
