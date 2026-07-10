@@ -1,6 +1,6 @@
 # Artificial Neural Network (ANN) From Scratch
 
-A fully connected Artificial Neural Network (ANN) implemented from scratch using **NumPy**/**CuPy**, without relying on deep learning frameworks such as TensorFlow or PyTorch. This project demonstrates the complete training pipeline, including forward propagation, backpropagation, gradient descent, and prediction on handwritten digit images.
+A fully connected Artificial Neural Network (ANN) implemented from scratch using **NumPy**/**CuPy**, without relying on deep learning frameworks such as TensorFlow or PyTorch. This project demonstrates the complete training pipeline, including forward propagation, backpropagation, gradient descent, multiple optimization algorithms (SGD, Momentum, NAG, RMSProp, and Adam), GPU acceleration, and prediction.
 
 The network is trained on the MNIST Digit Recognizer dataset and is designed to be easily extendable with additional layers and activation functions.
 
@@ -28,8 +28,10 @@ The network is trained on the MNIST Digit Recognizer dataset and is designed to 
 ---
 
 ### Version 0.1.3
-* Added NAG, RMSProp and Adam Optimizer
-* Redesigned the mechanism of optimzer
+* Added Nesterov Accelerated Gradient (NAG)
+* Added RMSProp
+* Added Adam
+* Redesigned the mechanism of optimizer
 
 ## Tech Stack
 
@@ -91,7 +93,7 @@ from optimizers import Optimzer
 
 class MyOptimizer(Optimizer):
       def __init__(self, ...parameters):
-            super.__init__(name="My Optimizer")
+            super().__init__(name="My Optimizer")
             # setting up parameters
       
       def step(self, model, grads, X, y, lr):
