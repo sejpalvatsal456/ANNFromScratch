@@ -1,12 +1,13 @@
 import pandas as pd
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
-from ANN import Model, Layer, softmax, ReLu, ReLu_derive
+from models import Model, softmax, ReLu, ReLu_derive
+from layers import Layer
 from backend import GPU, xp
-from optimizers import Momentum
+from optimizers import Momentum, SGD, NAG, RMSProp, Adam
 
 # df = pd.read_csv("./digit-recognizer/train.csv")
-df = pd.read_csv("./fashion-mnist/fashion-mnist-train.csv")
+df = pd.read_csv("./fashion-mnist/fashion-mnist_train.csv")
 X = df.drop(columns='label')
 y = df['label']
 X_train, X_test, y_train, y_test = train_test_split(
@@ -19,13 +20,14 @@ X_test = xp.asarray(X_test) / 255.0
 y_train = xp.asarray(y_train)
 y_test = xp.asarray(y_test)
 
-momentum_optimizer = Momentum()
+# optimizer = RMSProp(beta=0.9, epsilon=1e-8)
+optimizer = Adam()
 
 model = Model(
   100,
-  0.2,
+  0.005,
   batch_size=512,
-  optimizer=momentum_optimizer
+  optimizer=optimizer
 )
 l1 = Layer(128, 784, ReLu, ReLu_derive)
 l2 = Layer(64, 128, ReLu, ReLu_derive)

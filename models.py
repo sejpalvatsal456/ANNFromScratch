@@ -31,45 +31,6 @@ def cross_entropy_loss(y_pred, y_true):
 
     return -xp.mean(xp.log(y_pred[xp.arange(m), y_true]))
 
-class Layer:
-  def __init__(
-    self,
-    n_nodes, 
-    n_prev_nodes,
-    act_func,
-    act_deriv=None
-  ):
-    self.n_nodes = n_nodes
-    self.n_prev_nodes = n_prev_nodes
-    self.act_func = act_func
-    self.act_deriv = act_deriv
-    self.W = (
-      xp.random.randn(n_prev_nodes, n_nodes)
-      * xp.sqrt(2 / n_prev_nodes)
-    )
-
-    self.b = xp.zeros((1, n_nodes))
-    self.input = None
-    self.A = None
-    self.Z = None
-    self.id = None
-
-  def calculate(self, X):
-    self.input = X
-    self.Z = X @ self.W + self.b
-    self.A = self.act_func(self.Z)
-    return self.A
-  
-  def update_params(self, dw, db, alpha, optimizer:Optimizer=None):
-    if not optimizer:
-      self.W = self.W - alpha*dw
-      self.b = self.b - alpha*db
-      return
-    # else:
-    #   print("Invalid optimiezr: " + optimizer.name)
-    #   exit()
-    self.W = optimizer.update(key=f"W{self.id}", lr=alpha, param=self.W, grad=dw)
-    self.b = optimizer.update(key=f"B{self.id}", lr=alpha, param=self.b, grad=db)
 
 class Model:
   def __init__(self, iterations, alpha, optimizer:Optimizer, batch_size=64, decay=0.001):
@@ -106,68 +67,81 @@ class Model:
   
   def _backward_prop(self, y_train, y_pred, m):
     one_hot_y = one_hot_encoding(y_train)
-
-    # dZ = A(2) - Y
     dZ = y_pred - one_hot_y
+
+    grads = []
 
     for i in reversed(range(len(self.layers))):
       layer = self.layers[i]
 
-      # dW(l) = A(l-1)_T dZ(l)
       dW = (layer.input.T @ dZ) / m
-      
-      # db(l) = Sum(dZ(l))
       db = xp.sum(dZ, axis=0, keepdims=True) / m
 
+      grads.append((layer, dW, db))
+      
       if i != 0:
         prev_layer = self.layers[i - 1]
-
         dA_prev = dZ @ layer.W.T
         dZ = dA_prev * prev_layer.act_deriv(prev_layer.Z)
 
-      layer.update_params(dW, db, self.alpha, self.optimizer)
+    
+    grads.reverse()
+    return grads
   
   def fit(self, X_train, y_train):
-    m, _ = X_train.shape
     loss_history = []
     acc_history = []
     iteration_history = []
+
     for i in range(self.iterations):
-      
-      self.alpha = self.alpha0 / (1+self.decay*i)
-      
-      # shuffle the dataset
+
+      self.alpha = self.alpha0 / (1 + self.decay * i)
+
+      # Shuffle dataset
       indices = xp.random.permutation(len(X_train))
       X_train = X_train[indices]
       y_train = y_train[indices]
-      
-      # start in batch size
+
       for start in range(0, len(X_train), self.batch_size):
+
         end = start + self.batch_size
         X_batch = X_train[start:end]
         y_batch = y_train[start:end]
-      
+
+        # Forward pass
         y_pred = self.forward_prop(X_batch)
+
+        # Loss
         loss = cross_entropy_loss(y_pred, y_batch)
         loss = float(loss.get()) if GPU else float(loss)
         loss_history.append(loss)
-        pred = xp.argmax(y_pred, axis=1)
-        acc = float(xp.mean(pred == y_batch).get()) if GPU else float(xp.mean(pred == y_batch))
-        acc_history.append(acc)
-        iteration_history.append(i)
-        self._backward_prop(y_batch, y_pred, len(X_batch))
 
+        # Accuracy
+        pred = xp.argmax(y_pred, axis=1)
+        acc = xp.mean(pred == y_batch)
+        acc = float(acc.get()) if GPU else float(acc)
+        acc_history.append(acc)
+
+        iteration_history.append(i)
+
+        # Compute gradients
+        grads = self._backward_prop(y_batch, y_pred, len(X_batch))
+        self.optimizer.step(model=self, grads=grads, X=X_batch, y=y_batch, lr=self.alpha, epoch=i+1)
+        
       if i % 10 == 0:
         pred = self.predict(X_train)
         acc = xp.mean(pred == y_train)
+        acc = float(acc.get()) if GPU else float(acc)
         print(f"Iteration {i} | Loss: {loss:.4f} | Accuracy: {acc:.4f}")
+
     if GPU:
         loss_history = xp.asnumpy(xp.array(loss_history))
         acc_history = xp.asnumpy(xp.array(acc_history))
     else:
         loss_history = xp.array(loss_history)
         acc_history = xp.array(acc_history)
-    plt.figure(figsize=(8,5))
+
+    plt.figure(figsize=(8, 5))
     plt.plot(iteration_history, loss_history, marker='o')
     plt.plot(iteration_history, acc_history, marker='o')
     plt.xlabel("Iteration")
