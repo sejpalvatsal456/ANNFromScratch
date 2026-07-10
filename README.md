@@ -94,11 +94,11 @@ class MyOptimizer(Optimizer):
             super.__init__(name="My Optimizer")
             # setting up parameters
       
-      def update(self, lr, param, grad, ...parameters):
+      def step(self, model, grads, X, y, lr):
             # Here comes the logic to update the parameters of model according to gradients
 
 ```
-**Note-** If `update()` is not implemented, calling it will give you `NotImplementedError`.
+**Note-** If `step()` is not implemented, calling it will give you `NotImplementedError`.
 
 Then you can use the object of that subclass to use it.
 For example, you can use the builtin `Momentum` Optimizer -
@@ -164,7 +164,7 @@ The model performs
 * Forward propagation
 * Loss gradient computation
 * Backpropagation
-* Weight updates
+* calls optimizer to update weights
 
 for the specified number of iterations.
 
