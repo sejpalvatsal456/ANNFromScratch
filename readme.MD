@@ -33,6 +33,11 @@ The network is trained on the MNIST Digit Recognizer dataset and is designed to 
 * Added Adam
 * Redesigned the mechanism of optimizer
 
+### Version 0.2.1
+* Removed `Layer.update_params()` method.
+* Redesigned the `Layer` class and made it as a template class instead of directly usable.
+* Made a `Dense` Layer class.
+
 ## Tech Stack
 
 * Python
@@ -106,6 +111,7 @@ Then you can use the object of that subclass to use it.
 For example, you can use the builtin `Momentum` Optimizer -
 
 ```python
+from models import Model
 from optimizers import Momentum
 
 momentum = Momentum(beta=0.9)
@@ -134,9 +140,26 @@ A layer is created by specifying
 Example:
 
 ```python
-l1 = Layer(128, 784, ReLu, ReLu_derive)
-l2 = Layer(64, 128, ReLu, ReLu_derive)
-l3 = Layer(10, 64, softmax)
+from models import ReLu, ReLu_deriv, softmax
+from layer import Dense
+
+l1 = Dense(
+      n_nodes=128, 
+      n_prev_nodes=784, 
+      act_func=ReLu, 
+      act_deriv=ReLu_derive
+)
+l2 = Dense(
+      n_nodes=64, 
+      n_prev_nodes=128, 
+      act_func=ReLu, 
+      act_deriv=ReLu_derive
+)
+l3 = Dense(
+      n_nodes=10,
+      n_prev_nodes=64, 
+      act_func=softmax
+)
 ```
 
 The first hidden layer receives 784 inputs (28×28 image pixels) and produces 10 outputs. The output layer receives those 10 values and predicts probabilities for the 10 digit classes.

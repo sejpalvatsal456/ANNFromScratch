@@ -2,7 +2,7 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 from models import Model, softmax, ReLu, ReLu_derive
-from layers import Layer
+from layers import Dense
 from backend import GPU, xp
 from optimizers import Momentum, SGD, NAG, RMSProp, Adam
 
@@ -29,9 +29,9 @@ model = Model(
   batch_size=512,
   optimizer=optimizer
 )
-l1 = Layer(128, 784, ReLu, ReLu_derive)
-l2 = Layer(64, 128, ReLu, ReLu_derive)
-l3 = Layer(10, 64, softmax)
+l1 = Dense(128, 784, ReLu, ReLu_derive)
+l2 = Dense(64, 128, ReLu, ReLu_derive)
+l3 = Dense(10, 64, softmax)
 model.add_layer(l1)
 model.add_layer(l2)
 model.add_layer(l3)
