@@ -148,7 +148,7 @@ class Adam(Optimizer):
         self.momentum[layer.id][key] = self.beta1*self.momentum[layer.id][key] + (1-self.beta1)*layer.grad[key]
         
         # update velocity - v(t) = beta2*v(t-1) + (1-beta2)*(grad^2)
-        self.velocity[layer.id][key] = self.beta2*self.velocity[layer.id][key] + (1-self.beta2)*(self.grad[key]**2)
+        self.velocity[layer.id][key] = self.beta2*self.velocity[layer.id][key] + (1-self.beta2)*(layer.grad[key]**2)
         
         # get the bias coorection
         # m_hat(t) = m(t)/(1-beta1^t)

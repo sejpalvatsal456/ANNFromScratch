@@ -21,7 +21,7 @@ y_train = xp.asarray(y_train)
 y_test = xp.asarray(y_test)
 
 # optimizer = RMSProp(beta=0.9, epsilon=1e-8)
-optimizer = RMSProp()
+optimizer = Adam()
 
 model = Model(
   100,
