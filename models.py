@@ -3,6 +3,7 @@ from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 from backend import GPU, xp
 from optimizers import Optimizer
+from layers import Layer
 
 def one_hot_encoding(y, num_classes=10):
   one_hot = xp.zeros((len(y), num_classes))
@@ -38,7 +39,7 @@ class Model:
     self.alpha = alpha
     self.alpha0 = alpha
     self.decay = decay
-    self.layers = []
+    self.layers: list[Layer] = []
     self.batch_size = batch_size
     self.optimizer = optimizer
   
@@ -46,13 +47,10 @@ class Model:
     layer.id = len(self.layers)
     self.layers.append(layer)
     
-  def forward_prop(self, X):
+  def forward_prop(self, X, training=True):
     curr_A = X
     for layer in self.layers:
-      # print(layer.W.shape)
-      curr_A = layer.calculate(curr_A)
-      # print("Curr_A:")
-      # print(curr_A)
+      curr_A = layer.forward(curr_A, training=training)
     return curr_A
     
   def predict(self, X):
@@ -65,28 +63,14 @@ class Model:
 
     return float(acc.get()) if GPU else float(acc)
   
-  def _backward_prop(self, y_train, y_pred, m):
+  def backward_prop(self, y_train, y_pred):
     one_hot_y = one_hot_encoding(y_train)
-    dZ = y_pred - one_hot_y
+    # dZ = y_pred - one_hot_y
+    dA = y_pred - one_hot_y
 
-    grads = []
-
-    for i in reversed(range(len(self.layers))):
-      layer = self.layers[i]
-
-      dW = (layer.input.T @ dZ) / m
-      db = xp.sum(dZ, axis=0, keepdims=True) / m
-
-      grads.append((layer, dW, db))
-      
-      if i != 0:
-        prev_layer = self.layers[i - 1]
-        dA_prev = dZ @ layer.W.T
-        dZ = dA_prev * prev_layer.act_deriv(prev_layer.Z)
-
-    
-    grads.reverse()
-    return grads
+    for layer in reversed(self.layers):
+      # dA(l) = backward(dA(l-1))
+      dA = layer.backward(dA_prev=dA)
   
   def fit(self, X_train, y_train):
     loss_history = []
@@ -109,7 +93,7 @@ class Model:
         y_batch = y_train[start:end]
 
         # Forward pass
-        y_pred = self.forward_prop(X_batch)
+        y_pred = self.forward_prop(X_batch, training=True)
 
         # Loss
         loss = cross_entropy_loss(y_pred, y_batch)
@@ -125,8 +109,8 @@ class Model:
         iteration_history.append(i)
 
         # Compute gradients
-        grads = self._backward_prop(y_batch, y_pred, len(X_batch))
-        self.optimizer.step(model=self, grads=grads, X=X_batch, y=y_batch, lr=self.alpha, epoch=i+1)
+        self.backward_prop(y_batch, y_pred)
+        self.optimizer.step(model=self, lr=self.alpha, epoch=i+1, X=X_train, y=y_train)
         
       if i % 10 == 0:
         pred = self.predict(X_train)

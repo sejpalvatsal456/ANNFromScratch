@@ -6,7 +6,7 @@ class Optimizer:
   def __init__(self, name: str,):
     self.name = name
   
-  def step(self, model, grads, X, y, lr, epoch):
+  def step(self, model, X, y, lr, epoch):
     raise NotImplementedError
     
 
@@ -14,10 +14,17 @@ class SGD(Optimizer):
   def __init__(self):
     super().__init__("SGD")
   
-  def step(self, model, grads, X, y, lr):
-    for layer, dW, db in grads:
-      layer.W -= lr*dW
-      layer.b -= lr*db 
+  def step(self, lr, epoch, model, X=None, y=None ):
+    
+    for layer in model.layers:
+      if not layer.trainable:
+        continue
+      
+      for key in layer.params:
+        
+        # update params - w(t+1) = w(t) - lr*grad
+        layer.params[key] -= lr*layer.grad[key]
+      
 
 class Momentum:
 
@@ -25,26 +32,27 @@ class Momentum:
     self.beta = beta
     self.velocity = {}
   
-  def step(self, model, grads, X, y, lr, epoch):
-    for layer, dW, db in grads:
+  def step(self, model, lr, epoch, X=None, y=None):
+    
+    for layer in model.layers:
+      if not layer.trainable:
+        continue
       
       if layer.id not in self.velocity:
         # v(0) = 0
         self.velocity[layer.id] = {
-          "W": xp.zeros_like(layer.W),
-          "b": xp.zeros_like(layer.b)
+          "W": xp.zeros_like(layer.params['W']),
+          "b": xp.zeros_like(layer.params['b'])
         }
       
-      # get the velocity terms
-      # v(t+1) = beta*v(t) + (1-beta)*grad
-      self.velocity[layer.id]["W"] = self.beta*self.velocity[layer.id]["W"] + (1-self.beta)*dW
-      self.velocity[layer.id]["b"] = self.beta*self.velocity[layer.id]["b"] + (1-self.beta)*db
-      
-      # update params
-      # w(t+1) = w(t) - lr*v(t+1)
-      layer.W -= lr*self.velocity[layer.id]["W"]
-      layer.b -= lr*self.velocity[layer.id]["b"]
-      
+      for key in layer.params:
+        # get the velocity terms
+        # v(t+1) = beta*v(t) + (1-beta)*grad
+        self.velocity[layer.id][key] = self.beta*self.velocity[layer.id][key] + (1-self.beta)*layer.grad[key]
+        # update params
+        # w(t+1) = w(t) - lr*v(t+1)
+        layer.params[key] -= lr*self.velocity[layer.id][key]
+
 
 class NAG(Optimizer):
   def __init__(self, beta=0.9):
@@ -53,41 +61,40 @@ class NAG(Optimizer):
     self.velocity = {}
     
 
-  def step(self, model, grads, X, y, lr, epoch):
+  def step(self, model, X, y, lr, epoch):
     
-    # calculate look ahead params
+    trainable_layers = [l for l in model.layers if l.trainable]
     saved = []
-    for layer, dW, db in grads:
-      saved.append((layer.W.copy(), layer.b.copy()))
+    for layer in trainable_layers:
+      saved.append({ k:v.copy() for k, v in layer.params.items() })
       if layer.id not in self.velocity:
+        # v(0) = 0
         self.velocity[layer.id] = {
-          "W": xp.zeros_like(layer.W),
-          "b": xp.zeros_like(layer.b)
+          k: xp.zeros_like(v) for k, v in layer.params.items()
         }
       
       # w_la = w(t) - beta*v(t-1)
-      layer.W -= self.beta*self.velocity[layer.id]["W"]
-      layer.b -= self.beta*self.velocity[layer.id]["b"]
+      for key in layer.params:
+        layer.params[key] -= self.beta*self.velocity[layer.id][key] 
       
-    pred = model.forward_prop(X)
-    new_grads = model._backward_prop(y_train=y, y_pred=pred, m=len(X))
+    pred = model.forward_prop(X, training=True)
+    model.backward_prop(y_train=y, y_pred=pred)
     
     # get the original params
-    for layer, (W, b) in zip(model.layers, saved):
-      layer.W = W
-      layer.b = b
-    
-    # calculate velocity
-    for layer, dW, db in new_grads:
+    for layer, snapshot in zip(trainable_layers, saved):
+      for key, value in snapshot.items():
+        layer.params[key] = value
       
-      # v(t) = beta*v(t-1) + lr*grad(w_la)
-      self.velocity[layer.id]["W"] = self.beta*self.velocity[layer.id]["W"] + lr*dW
-      self.velocity[layer.id]["b"] = self.beta*self.velocity[layer.id]["b"] + lr*db
-
-      # w(t+1) = w(t) - lr*v(t)
-      layer.W -= self.velocity[layer.id]["W"]
-      layer.b -= self.velocity[layer.id]["b"]
-
+    # calculate the updated velocity and final params
+    for layer in trainable_layers:
+      for key in layer.params:
+        grad = layer.grad[key]
+        # v(t) = beta*v(t-1) + lr*grad(w_la)
+        self.velocity[layer.id][key] = self.beta*self.velocity[layer.id][key] + lr*grad
+        # w(t+1) = w(t) - v(t)
+        layer.params[key] -= self.velocity[layer.id][key]
+      
+      
 
 class RMSProp(Optimizer):
   def __init__(self, beta=0.95, epsilon=1e-8):
@@ -96,24 +103,22 @@ class RMSProp(Optimizer):
     self.epsilon = epsilon
     self.velocity = {}
     
-  def step(self, model, grads, X, y, lr, epoch):
+  def step(self, model, X, y, lr, epoch):
     
-    for layer, dW, db in grads:
+    for layer in model.layers:
+      if not layer.trainable:
+        continue
       
       # init velocity to v(0) = 0
       if layer.id not in self.velocity:
-        self.velocity[layer.id] = {
-          "W" : xp.zeros_like(layer.W),
-          "b" : xp.zeros_like(layer.b)
-        }
-        
-      # set v(t) = beta*v(t-1) + (1-beta)*grad^2
-      self.velocity[layer.id]["W"] = self.beta*self.velocity[layer.id]["W"] + (1-self.beta)*(dW**2)
-      self.velocity[layer.id]["b"] = self.beta*self.velocity[layer.id]["b"] + (1-self.beta)*(db**2)
+        self.velocity[layer.id] = { k: xp.zeros_like(v) for k, v in layer.params.items() }
       
-      # update params w(t+1) = w(t) - lr/(sqrt(v(t)) + epsilon) * grad
-      layer.W -= lr*dW/(xp.sqrt(self.velocity[layer.id]["W"]) + self.epsilon)
-      layer.b -= lr*db/(xp.sqrt(self.velocity[layer.id]["b"]) + self.epsilon)
+      for key in layer.params:
+        # set v(t) = beta*v(t-1) + (1-beta)*grad^2
+        self.velocity[layer.id][key] = self.beta*self.velocity[layer.id][key] + (1-self.beta)*(layer.grad[key]**2)
+        # update params w(t+1) = w(t) - lr/(sqrt(v(t)) + epsilon) * grad
+        layer.params[key] -= lr*layer.grad[key]/(xp.sqrt(self.velocity[layer.id][key]) + self.epsilon)
+    
       
 class Adam(Optimizer):
   def __init__(self, beta1=0.9, beta2=0.999, epsilon=1e-8):
@@ -125,44 +130,38 @@ class Adam(Optimizer):
     self.velocity = {}
     self.t = 1
     
-  def step(self, model, grads, X, y, lr, epoch):
+  def step(self, model, X, y, lr, epoch):
     
-    for layer, dW, db in grads:
+    for layer in model.layers:
       
-      # init v(0) = 0 and m(0) = 0
-      if layer.id not in self.momentum:
-        self.momentum[layer.id] = {
-          "W": xp.zeros_like(layer.W),
-          "b" : xp.zeros_like(layer.b)
-        }
+      if not layer.trainable:
+        continue
       
+      # v(0) = 0 and m(0) = 0
       if layer.id not in self.velocity:
+        self.velocity[layer.id] = { k: xp.zeros_like(v) for k, v in layer.params.items() }
+      if layer.id not in self.momentum:
+        self.momentum[layer.id] = { k: xp.zeros_like(v) for k, v in layer.params.items() }
+      
+      for key in layer.params:
+        # update momentum - m(t) = beta1*m(t-1) + (1-beta1)*grad  
+        self.momentum[layer.id][key] = self.beta1*self.momentum[layer.id][key] + (1-self.beta1)*layer.grad[key]
         
-        self.velocity[layer.id] = {
-          "W": xp.zeros_like(layer.W),
-          "b" : xp.zeros_like(layer.b)
-        }
+        # update velocity - v(t) = beta2*v(t-1) + (1-beta2)*(grad^2)
+        self.velocity[layer.id][key] = self.beta2*self.velocity[layer.id][key] + (1-self.beta2)*(self.grad[key]**2)
         
+        # get the bias coorection
+        # m_hat(t) = m(t)/(1-beta1^t)
+        m_hat = self.momentum[layer.id][key]/(1-self.beta1**self.t)
+        
+        # v_hat(t) = v(t)/(1-beta2^t)
+        v_hat = self.velocity[layer.id][key]/(1-self.beta2**self.t)
+        
+        # update the params - w(t+1) = w(t) - lr*m_hat/(sqrt(v_hat) + epsilon)
+        layer.params[key] -= lr*m_hat/(xp.sqrt(v_hat) + self.epsilon)
+        
+    self.t += 1
       
-      # update momentum - m(t) = beta1*m(t-1) + (1-beta1)*grad  
-      self.momentum[layer.id]["W"] = self.beta1*self.momentum[layer.id]["W"] + (1-self.beta1)*dW
-      self.momentum[layer.id]["b"] = self.beta1*self.momentum[layer.id]["b"] + (1-self.beta1)*db
-      
-      # update velocity - v(t) = beta2*v(t-1) + (1-beta2)*(grad^2)
-      self.velocity[layer.id]["W"] = self.beta2*self.velocity[layer.id]["W"] + (1-self.beta2)*dW**2
-      self.velocity[layer.id]["b"] = self.beta2*self.velocity[layer.id]["b"] + (1-self.beta2)*db**2
-      
-      # get the bias coorection
-      # m_hat(t) = m(t)/(1-beta1^t)
-      m_hat_W = self.momentum[layer.id]["W"] / (1 - self.beta1**self.t)
-      m_hat_b = self.momentum[layer.id]["b"] / (1 - self.beta1**self.t)
-      
-      # v_hat(t) = v(t)/(1-beta2^t)
-      v_hat_W = self.velocity[layer.id]["W"] / (1 - self.beta2**self.t)
-      v_hat_b = self.velocity[layer.id]["b"] / (1 - self.beta2**self.t)
-      
-      # update the params
-      layer.W -= lr*m_hat_W/(xp.sqrt(v_hat_W) + self.epsilon)
-      layer.b -= lr*m_hat_b/(xp.sqrt(v_hat_b) + self.epsilon)
-      self.t += 1
+        
+        
       
