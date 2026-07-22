@@ -2,7 +2,7 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 from models import Model, softmax, ReLu, ReLu_derive
-from layers import Dense
+from layers import Dense, Dropout
 from backend import GPU, xp
 from optimizers import Momentum, SGD, NAG, RMSProp, Adam
 
@@ -30,11 +30,15 @@ model = Model(
   optimizer=optimizer
 )
 l1 = Dense(128, 784, ReLu, ReLu_derive)
-l2 = Dense(64, 128, ReLu, ReLu_derive)
-l3 = Dense(10, 64, softmax)
+l2 = Dropout(rate=0.1)
+l3 = Dense(64, 128, ReLu, ReLu_derive)
+l4 = Dropout(rate=0.1)
+l5 = Dense(10, 64, softmax)
 model.add_layer(l1)
 model.add_layer(l2)
 model.add_layer(l3)
+model.add_layer(l4)
+model.add_layer(l5)
 model.fit(X_train, y_train)
 
 train_acc = model.accuracy(X_train, y_train)

@@ -11,24 +11,12 @@ class Layer:
   def forwrad(self, X, training=True):
     return NotImplementedError
   
-  def backward(self):
+  def backward(self, dA_prev):
     return NotImplementedError
   
   
 class Dense(Layer):
-  def __init__(self, n_nodes, n_prev_nodes, act_func, act_deriv=None):
-    # super().__init__(n_nodes, n_prev_nodes, act_func, act_deriv)
-    
-    # self.n_nodes = n_nodes
-    # self.n_prev_nodes = n_prev_nodes
-    
-    # self.W = xp.random.randn(n_prev_nodes, n_nodes) * xp.sqrt(2 / n_prev_nodes)
-    # self.b = xp.zeros((1, n_nodes))
-    # self.input = None
-    # self.A = None
-    # self.Z = None
-    # self.id = None
-    
+  def __init__(self, n_nodes, n_prev_nodes, act_func, act_deriv=None):    
     super().__init__()
     self.act_func = act_func
     self.act_deriv = act_deriv
@@ -57,25 +45,21 @@ class Dense(Layer):
     dA = dZ @ self.params['W'].T
     return dA
     
-    
-  # depreciated
-  # def update_params(self, dw, db, alpha, optimizer:Optimizer=None):
-  #   if not optimizer:
-  #     self.W = self.W - alpha*dw
-  #     self.b = self.b - alpha*db
-  #     return
-  #   # else:
-  #   #   print("Invalid optimiezr: " + optimizer.name)
-  #   #   exit()
-  #   self.W = optimizer.update(key=f"W{self.id}", lr=alpha, param=self.W, grad=dw)
-  #   self.b = optimizer.update(key=f"B{self.id}", lr=alpha, param=self.b, grad=db)
 
 
 class Dropout(Layer):
-  def __init__(self, n_nodes, n_prev_nodes):
-    super().__init__(n_nodes, n_prev_nodes, act_func=None, act_deriv=None)
+  def __init__(self, rate=0.5):
+    super().__init__()
+    self.rate = rate
+    self.trainable = False
+    self.mask = None
     
-  def calculate(self, X):
-    return super().calculate(X)
-    
+  def forward(self, X, training=True):
+    if not training:
+      return X
+    self.mask = (xp.random.rand(*X.shape) > self.rate) / (1-self.rate)
+    return X * self.mask
+  
+  def backward(self, dA_prev):
+    return self.mask * dA_prev
     
