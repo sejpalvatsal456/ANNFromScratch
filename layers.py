@@ -62,4 +62,16 @@ class Dropout(Layer):
   
   def backward(self, dA_prev):
     return self.mask * dA_prev
-    
+  
+class Flatten(Layer):
+  def __init__(self):
+    super().__init__()
+    self.trainable = False
+    self.input_shape = None
+
+  def forward(self, X, training=True):
+    self.input_shape = X.shape
+    return X.reshape(X.shape[0], -1)
+
+  def backward(self, dA):
+    return dA.reshape(self.input_shape)

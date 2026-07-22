@@ -36,7 +36,7 @@ The network is trained on the MNIST Digit Recognizer dataset and is designed to 
 ### Version 0.2.1
 * Removed `Layer.update_params()` method.
 * Redesigned the `Layer` class and made it as a template class instead of directly usable.
-* Made a `Dense` Layer class.
+* Made a `Dense`, `Dropout` and `Flattern` Layer classes.
 
 ## Tech Stack
 
