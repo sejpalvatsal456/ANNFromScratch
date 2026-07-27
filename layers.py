@@ -4,9 +4,18 @@ from optimizers import Optimizer
 class Layer:
   def __init__(self):    
     self.id = None 
+    self.input_shape: tuple[int, int] = None
+    self.n_nodes: int = None
+    self.n_prev_nodes: int = None
     self.trainable = True # false for layer like "Dropout", "Pooling", "Flatten", etc
     self.params = {} # like for dense layer - params = {"W": ..., "b": ...}
     self.grad = {} # like for dense layer - grad = { "W": ..., "b": ... }
+  
+  def _init_params(self):
+    return NotImplementedError
+  
+  def build(self, input_nodes):
+    return NotImplementedError
   
   def forwrad(self, X, training=True):
     return NotImplementedError
@@ -16,15 +25,25 @@ class Layer:
   
   
 class Dense(Layer):
-  def __init__(self, n_nodes, n_prev_nodes, act_func, act_deriv=None):    
+  def __init__(self, n_nodes, act_func, act_deriv=None, input_size: tuple[int, int]=None):    
     super().__init__()
+    self.input_size: tuple[int, int] = input_size
     self.act_func = act_func
     self.act_deriv = act_deriv
-    self.params["W"] = xp.random.randn(n_prev_nodes, n_nodes) * xp.sqrt(2/n_prev_nodes)
-    self.params["b"] = xp.zeros((1, n_nodes))
+    self.n_nodes = n_nodes
     self.input = None
     self.Z = None
     self.A = None
+    
+  
+  def _init_params(self):
+    self.params["W"] = xp.random.randn(self.n_prev_nodes, self.n_nodes) * xp.sqrt(2/self.n_prev_nodes)
+    self.params["b"] = xp.zeros((1, self.n_nodes)) 
+  
+  def build(self, input_nodes):
+    self.n_prev_nodes = input_nodes
+    self._init_params()
+        
   
   def forward(self, X, training=True):
     self.input = X
@@ -54,6 +73,12 @@ class Dropout(Layer):
     self.trainable = False
     self.mask = None
     
+  # def _init_params(self): <- you need this?? bs
+    
+  def build(self, input_nodes):
+    self.n_prev_nodes = input_nodes
+    self.n_nodes = input_nodes
+        
   def forward(self, X, training=True):
     if not training:
       return X
@@ -68,6 +93,10 @@ class Flatten(Layer):
     super().__init__()
     self.trainable = False
     self.input_shape = None
+    
+  def build(self, input_nodes):
+    self.n_prev_nodes = input_nodes
+    self.n_nodes = input_nodes
 
   def forward(self, X, training=True):
     self.input_shape = X.shape

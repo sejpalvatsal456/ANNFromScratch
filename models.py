@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from backend import GPU, xp
 from optimizers import Optimizer
 from layers import Layer
+import math
 
 def one_hot_encoding(y, num_classes=10):
   one_hot = xp.zeros((len(y), num_classes))
@@ -34,18 +35,30 @@ def cross_entropy_loss(y_pred, y_true):
 
 
 class Model:
-  def __init__(self, iterations, alpha, optimizer:Optimizer, batch_size=64, decay=0.001):
-    self.iterations = iterations
+  def __init__(self, layers: list[Layer], epochs, alpha, optimizer:Optimizer, input_shape=None, batch_size=64, decay=0.001):
+    self.epochs = epochs
     self.alpha = alpha
     self.alpha0 = alpha
     self.decay = decay
-    self.layers: list[Layer] = []
     self.batch_size = batch_size
     self.optimizer = optimizer
+    self.input_shape = input_shape
+    
+    self.layers: list[Layer] = []
+    if input_shape is None:
+      raise ValueError("Model requires an input_shape.")
+    prev_nodes = math.prod(input_shape)
+    for layer in layers:
+      layer.id = len(self.layers)
+      layer.build(prev_nodes)
+      prev_nodes = layer.n_nodes
+      self.layers.append(layer)
   
-  def add_layer(self, layer):
-    layer.id = len(self.layers)
-    self.layers.append(layer)
+  # depreciated
+  # def add_layer(self, layer):
+  #   layer.id = len(self.layers)
+  #   self.layers.append(layer)
+  
     
   def forward_prop(self, X, training=True):
     curr_A = X
@@ -77,7 +90,7 @@ class Model:
     acc_history = []
     iteration_history = []
 
-    for i in range(self.iterations):
+    for i in range(self.epochs):
 
       self.alpha = self.alpha0 / (1 + self.decay * i)
 

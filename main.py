@@ -23,22 +23,40 @@ y_test = xp.asarray(y_test)
 # optimizer = RMSProp(beta=0.9, epsilon=1e-8)
 optimizer = Adam()
 
+# model = Model(
+#   100,
+#   0.005,
+#   batch_size=512,
+#   optimizer=optimizer
+# )
+# l1 = Dense(128, 784, ReLu, ReLu_derive)
+# l2 = Dropout(rate=0.1)
+# l3 = Dense(64, 128, ReLu, ReLu_derive)
+# l4 = Dropout(rate=0.1)
+# l5 = Dense(10, 64, softmax)
+# model.add_layer(l1)
+# model.add_layer(l2)
+# model.add_layer(l3)
+# model.add_layer(l4)
+# model.add_layer(l5)
+
+layers = [
+  Dense(128, ReLu, ReLu_derive),
+  Dropout(rate=0.1),
+  Dense(64, ReLu, ReLu_derive),
+  Dropout(0.1),
+  Dense(10, softmax)
+]
+
 model = Model(
-  100,
-  0.005,
-  batch_size=512,
+  input_shape=(28, 28),
+  layers=layers,
+  epochs=100,
+  alpha=0.005,
+  batch_size=256,
   optimizer=optimizer
 )
-l1 = Dense(128, 784, ReLu, ReLu_derive)
-l2 = Dropout(rate=0.1)
-l3 = Dense(64, 128, ReLu, ReLu_derive)
-l4 = Dropout(rate=0.1)
-l5 = Dense(10, 64, softmax)
-model.add_layer(l1)
-model.add_layer(l2)
-model.add_layer(l3)
-model.add_layer(l4)
-model.add_layer(l5)
+
 model.fit(X_train, y_train)
 
 train_acc = model.accuracy(X_train, y_train)
