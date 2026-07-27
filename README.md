@@ -2,7 +2,7 @@
 
 A fully connected Artificial Neural Network (ANN) implemented from scratch using **NumPy**/**CuPy**, without relying on deep learning frameworks such as TensorFlow or PyTorch. This project demonstrates the complete training pipeline, including forward propagation, backpropagation, gradient descent, multiple optimization algorithms (SGD, Momentum, NAG, RMSProp, and Adam), GPU acceleration, and prediction.
 
-The network is trained on the MNIST Digit Recognizer dataset and is designed to be easily extendable with additional layers and activation functions.
+The framework has been tested on the MNIST Digit Recognizer and Fashion-MNIST datasets and is designed to be easily extendable with additional layers, activation functions, and optimization algorithms.
 
 ## Features
 
@@ -36,7 +36,12 @@ The network is trained on the MNIST Digit Recognizer dataset and is designed to 
 ### Version 0.2.1
 * Removed `Layer.update_params()` method.
 * Redesigned the `Layer` class and made it as a template class instead of directly usable.
-* Made a `Dense` Layer class.
+* Made a `Dense`, `Dropout` and `Flattern` Layer classes.
+
+### Version 0.2.2
+* Redesigned the `Model` API to use a Sequential-style architecture and improved extensibility for future custom layers..
+* Added automatic layer building through `Layer.build()`.
+* Removed the need to manually specify `n_prev_nodes` for each layer and Automatic input dimension inference from `input_shape`.
 
 ## Tech Stack
 
@@ -58,13 +63,19 @@ Example architecture:
 Input (784)
       │
       ▼
-Hidden Layer (128, ReLU)
+Dense (128, ReLU)
       │
       ▼
-Hidden Layer (64, ReLU)
+Dropout (0.1)
       │
       ▼
-Output Layer (10, Softmax)
+Dense (64, ReLU)
+      │
+      ▼
+Dropout (0.1)
+      │
+      ▼
+Dense (10, Softmax)
 ```
 
 The architecture can be changed simply by adding or removing layers.
@@ -78,11 +89,20 @@ The architecture can be changed simply by adding or removing layers.
 Create a model by specifying the number of training iterations and learning rate.
 
 ```python
+layers = [
+    Dense(128, ReLu, ReLu_derive),
+    Dropout(rate=0.1),
+    Dense(64, ReLu, ReLu_derive),
+    Dense(10, softmax)
+]
+
 model = Model(
-    iterations=100,
-    alpha=0.2,
-    batch_size=512,
-    decay=0.001,
+    input_shape=(28, 28),
+    layers=layers,
+    epochs=100,
+    alpha=0.005,
+    batch_size=256,
+    optimizer=Adam()
 )
 ```
 
@@ -101,7 +121,7 @@ class MyOptimizer(Optimizer):
             super().__init__(name="My Optimizer")
             # setting up parameters
       
-      def step(self, model, grads, X, y, lr):
+      def step(self, model, lr, epoch, X, y):
             # Here comes the logic to update the parameters of model according to gradients
 
 ```
@@ -133,7 +153,6 @@ model = Model(
 A layer is created by specifying
 
 * Number of neurons
-* Number of input features
 * Activation function
 * Activation derivative (hidden layers only)
 
@@ -145,36 +164,37 @@ from layer import Dense
 
 l1 = Dense(
       n_nodes=128, 
-      n_prev_nodes=784, 
       act_func=ReLu, 
       act_deriv=ReLu_derive
 )
 l2 = Dense(
       n_nodes=64, 
-      n_prev_nodes=128, 
       act_func=ReLu, 
       act_deriv=ReLu_derive
 )
 l3 = Dense(
       n_nodes=10,
-      n_prev_nodes=64, 
       act_func=softmax
 )
 ```
 
 The first hidden layer receives 784 inputs (28×28 image pixels) and produces 10 outputs. The output layer receives those 10 values and predicts probabilities for the 10 digit classes.
+The input dimension is inferred automatically during model construction.
 
 ---
 
-### Building the Network
+## Creating Custom Layers
 
-Add layers in order.
+Every layer inherits from the abstract `Layer` class.
 
-```python
-model.add_layer(l1)
-model.add_layer(l2)
-model.add_layer(l3)
-```
+A custom layer must implement:
+
+* build(input_nodes)
+* forward(X, training=True)
+* backward(dA_prev)
+
+Trainable layers should initialize their parameters inside `build()`.
+Non-trainable layers simply propagate the input dimension.
 
 ### Training
 
